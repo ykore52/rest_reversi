@@ -20,11 +20,7 @@ func MyHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("RemoteAddr:       %s\n", r.RemoteAddr)
 	fmt.Printf("TransferEncoding: %s\n", r.TransferEncoding)
 
-	if r.RequestURI == "/user/regist" {
-		PostRegist(w, r)
-	} else {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	ApiRoute(w, r)
 }
 
 func Run(port int, args []string) error {

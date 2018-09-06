@@ -8,9 +8,8 @@ import (
 )
 
 type User struct {
-	Name      string
-	UserId    string
-	SessionId string
+	Name   string `json:"name"`
+	UserId string `json:"userId"`
 }
 
 var userStore map[string]User
@@ -26,9 +25,8 @@ func CreateUser(name string) User {
 	InitUserStore(false)
 
 	user := User{
-		Name:      name,
-		UserId:    fmt.Sprintf("%x", sha256.Sum224([]byte((name + strconv.FormatInt(time.Now().UnixNano(), 10))))),
-		SessionId: fmt.Sprintf("%x", sha256.Sum224([]byte((strconv.FormatInt(time.Now().UnixNano(), 10))))),
+		Name:   name,
+		UserId: fmt.Sprintf("%x", sha256.Sum224([]byte((name + strconv.FormatInt(time.Now().UnixNano(), 10))))),
 	}
 
 	userStore[user.UserId] = user

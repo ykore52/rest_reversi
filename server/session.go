@@ -1,11 +1,24 @@
 package server
 
+import (
+	"crypto/sha256"
+	"fmt"
+	"strconv"
+	"time"
+)
+
 type SessionState int
 
 const (
-	SESSION_WAIT SessionState = iota
-	SESSION_ESTABLISHED
-	SESSION_CLOSE
+	STATE_WAIT SessionState = iota
+	STATE_ESTABLISHED
+	STATE_PUT_WHITE
+	STATE_PUT_BLACK
+	STATE_PASSED_WHITE
+	STATE_PASSED_BLACK
+	STATE_WON_WHITE
+	STATE_WON_BLACK
+	STATE_CLOSE
 )
 
 const (
@@ -15,15 +28,18 @@ const (
 )
 
 const (
-	MAX_BOARD int = 8
+	MAX_BOARD_SIZE int = 8
 )
 
 type Session struct {
-	SessionId string
-	Players   []User
-	State     SessionState
-	Turn      int
-	Board     [][]int
+	SessionId   string       `json:"sessionId"`
+	Players     []User       `json:"players"`
+	State       SessionState `json:"state"`
+	Turn        int          `json:"turn"`
+	Board       [][]int      `json:"board"`
+	ElapsedTurn int          `json:"elapsed_turn"`
+	LastMove    []int        `json:"last_move"`
+	MoveLog     [][]int      `json:"move_log"`
 }
 
 var sessionStore map[string]*Session
@@ -34,31 +50,33 @@ func InitSessionStore(force bool) {
 	}
 }
 
-func CreateSession(name string) (string, string) {
+func CreateSession(username string) (string, string) {
 
 	InitSessionStore(false)
 
-	user := CreateUser(name)
+	user := CreateUser(username)
 
-	isPaired := func(user User) bool {
+	sessionId := func(user User) string {
 		for _, s := range sessionStore {
 			// pairing
-			if len(s.Players) == 1 && s.State == SESSION_WAIT {
-				user.SessionId = s.SessionId
+			if len(s.Players) == 1 && s.State == STATE_WAIT {
 				s.Players = append(s.Players, user)
-				s.State = SESSION_ESTABLISHED
-				return true
+				s.State = STATE_ESTABLISHED
+				return s.SessionId
 			}
 		}
-		return false
+		return ""
 	}(user)
 
-	if !isPaired {
+	if sessionId == "" {
+
 		// create a new session
-		sessionStore[user.SessionId] = &Session{
-			SessionId: user.SessionId,
+		sessionId = fmt.Sprintf("%x", sha256.Sum224([]byte((username + strconv.FormatInt(time.Now().UnixNano(), 10)))))
+
+		sessionStore[sessionId] = &Session{
+			SessionId: sessionId,
 			Players:   []User{user},
-			State:     SESSION_WAIT,
+			State:     STATE_WAIT,
 			Turn:      1,
 			Board: [][]int{
 				{0, 0, 0, 0, 0, 0, 0, 0},
@@ -70,16 +88,16 @@ func CreateSession(name string) (string, string) {
 				{0, 0, 0, 0, 0, 0, 0, 0},
 				{0, 0, 0, 0, 0, 0, 0, 0},
 			},
+			ElapsedTurn: 1,
 		}
 	}
 
 	userStore[user.UserId] = user
 
-	return user.UserId, user.SessionId
+	return user.UserId, sessionId
 }
 
 func RemoveSession(sessionId string) {
-
 	delete(sessionStore, sessionId)
 }
 
@@ -88,26 +106,30 @@ func GetSession() map[string]*Session {
 }
 
 func GetSessionInfo(sessionId string) *Session {
-
 	return sessionStore[sessionId]
-
 }
 
 func GetBoard(sessionId string) [][]int {
-
 	return sessionStore[sessionId].Board
-
 }
 
-func PutDisc(sessionId string, color int, posY, posX int) int {
+func IsTurn(sessionId string, color int) bool {
+	return sessionStore[sessionId].Turn == color
+}
 
-	if posY < 0 || posY >= MAX_BOARD || posX < 0 || posX >= MAX_BOARD {
+func PutDisc(sessionId string, color int, posX, posY int) int {
+
+	if !IsTurn(sessionId, color) {
 		return 1
+	}
+
+	if posY < 0 || posY >= MAX_BOARD_SIZE || posX < 0 || posX >= MAX_BOARD_SIZE {
+		return 2
 	}
 
 	board := sessionStore[sessionId].Board
 	if board[posY][posX] != EMPTY {
-		return 1
+		return 3
 	}
 
 	// save previous state
@@ -151,7 +173,7 @@ func PutDisc(sessionId string, color int, posY, posX int) int {
 	move = move || func() bool {
 		move := false
 		side_y, side_x := -1, -1
-		for y, x := posY-1, posX+1; y >= 0 && x < MAX_BOARD; y, x = y-1, x+1 {
+		for y, x := posY-1, posX+1; y >= 0 && x < MAX_BOARD_SIZE; y, x = y-1, x+1 {
 			if board[y][x] == EMPTY {
 				return false
 			}
@@ -175,7 +197,7 @@ func PutDisc(sessionId string, color int, posY, posX int) int {
 	move = move || func() bool {
 		move := false
 		side_x := -1
-		for x := posX + 1; x < MAX_BOARD; x++ {
+		for x := posX + 1; x < MAX_BOARD_SIZE; x++ {
 			if board[posY][x] == EMPTY {
 				return false
 			}
@@ -199,7 +221,7 @@ func PutDisc(sessionId string, color int, posY, posX int) int {
 	move = move || func() bool {
 		move := false
 		side_y, side_x := -1, -1
-		for y, x := posY+1, posX+1; y < MAX_BOARD && x < MAX_BOARD; y, x = y+1, x+1 {
+		for y, x := posY+1, posX+1; y < MAX_BOARD_SIZE && x < MAX_BOARD_SIZE; y, x = y+1, x+1 {
 			if board[y][x] == EMPTY {
 				return false
 			}
@@ -221,13 +243,16 @@ func PutDisc(sessionId string, color int, posY, posX int) int {
 
 	// parse for down
 	move = move || func() bool {
+		fmt.Printf("begin %d %d %d\n", color, posX, posY)
 		move := false
 		side_y := -1
-		for y := posY + 1; y < MAX_BOARD; y++ {
+		for y := posY + 1; y < MAX_BOARD_SIZE; y++ {
 			if board[y][posX] == EMPTY {
+				fmt.Printf(" (%d %d) is empty\n", posX, y)
 				return false
 			}
 			if board[y][posX] == color {
+				fmt.Printf(" (%d %d) found\n", posX, y)
 				side_y = y
 				break
 			}
@@ -236,6 +261,7 @@ func PutDisc(sessionId string, color int, posY, posX int) int {
 		// flip discs
 		if side_y != -1 {
 			for y := posY + 1; y < side_y; y++ {
+				fmt.Printf(" flip (%d %d)\n", posX, y)
 				board[y][posX] = color
 				move = true
 			}
@@ -247,7 +273,7 @@ func PutDisc(sessionId string, color int, posY, posX int) int {
 	move = move || func() bool {
 		move := false
 		side_y, side_x := -1, -1
-		for y, x := posY+1, posX-1; y < MAX_BOARD && x >= 0; y, x = y+1, x-1 {
+		for y, x := posY+1, posX-1; y < MAX_BOARD_SIZE && x >= 0; y, x = y+1, x-1 {
 			if board[y][x] == EMPTY {
 				return false
 			}
@@ -320,7 +346,7 @@ func PutDisc(sessionId string, color int, posY, posX int) int {
 		for i := range board {
 			copy(board[i], boardBackup[i])
 		}
-		return 1
+		return 4
 	}
 
 	return 0
@@ -340,10 +366,10 @@ func FindCandidates(sessionId string, color int) [][]int {
 	}
 
 	candidates := make([][]int, 0)
-	for y := 0; y < MAX_BOARD; y++ {
-		for x := 0; x < MAX_BOARD; x++ {
+	for y := 0; y < MAX_BOARD_SIZE; y++ {
+		for x := 0; x < MAX_BOARD_SIZE; x++ {
 
-			if PutDisc(sessionId, color, y, x) == 0 {
+			if PutDisc(sessionId, color, x, y) == 0 {
 				candidates = append(candidates, []int{y, x})
 			}
 
@@ -359,5 +385,49 @@ func FindCandidates(sessionId string, color int) [][]int {
 
 func RotateTurn(sessionId string) {
 	// rotate a turn
-	sessionStore[sessionId].Turn = (^(sessionStore[sessionId].Turn - 1)) + 1
+	if sessionStore[sessionId].Turn == WHITE {
+		sessionStore[sessionId].Turn = BLACK
+	} else {
+		sessionStore[sessionId].Turn = WHITE
+	}
+}
+
+func UpdateSessionState(sessionId string, color int, posX int, posY int) {
+
+	turn := sessionStore[sessionId].Turn
+
+	// increment number of elapsed turn
+	sessionStore[sessionId].ElapsedTurn++
+
+	sessionStore[sessionId].LastMove = []int{color, posX, posY}
+	sessionStore[sessionId].MoveLog = append(sessionStore[sessionId].MoveLog, []int{color, posX, posY})
+
+	if turn == WHITE {
+		fmt.Printf("black cand: %d\n", len(FindCandidates(sessionId, BLACK)))
+		if len(FindCandidates(sessionId, BLACK)) == 0 {
+			if len(FindCandidates(sessionId, WHITE)) == 0 {
+				sessionStore[sessionId].State = STATE_WON_WHITE
+			} else {
+				// pass a turn
+				sessionStore[sessionId].State = STATE_PASSED_BLACK
+			}
+		} else {
+			RotateTurn(sessionId)
+			sessionStore[sessionId].State = STATE_PUT_WHITE
+		}
+
+	} else if turn == BLACK {
+		fmt.Printf("white cand: %d\n", len(FindCandidates(sessionId, WHITE)))
+		if len(FindCandidates(sessionId, WHITE)) == 0 {
+			if len(FindCandidates(sessionId, BLACK)) == 0 {
+				sessionStore[sessionId].State = STATE_WON_BLACK
+			} else {
+				// pass a turn
+				sessionStore[sessionId].State = STATE_PASSED_WHITE
+			}
+		} else {
+			RotateTurn(sessionId)
+			sessionStore[sessionId].State = STATE_PUT_BLACK
+		}
+	}
 }
