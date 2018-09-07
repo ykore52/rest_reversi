@@ -9,59 +9,73 @@ import (
 )
 
 const (
-	API_USER          string = "/user"
-	API_SESSION       string = "/session"
-	API_SESSION_BOARD string = "/board"
-	API_SESSION_CAND  string = "/cand"
+	// APIUser is an API endpoint of User
+	APIUser string = "/user"
+
+	// APISession is an API endpoint of Session
+	APISession string = "/session"
+
+	// APISessionBoard is an API endpoint of the board information
+	APISessionBoard string = "/board"
+
+	// APISessionCand is an API endpoint that you get candidates for putting discs on the board
+	APISessionCand string = "/cand"
 )
 
+// GeneralMessageResponse ...
 type GeneralMessageResponse struct {
 	Status      string `json:"status"`
 	Description string `json:"description"`
 }
 
+// GetUserRequest ...
 type GetUserRequest struct {
 	Status string `json:"status"`
 	Name   string `json:"name"`
 }
 
+// PostBoardRequest ...
 type PostBoardRequest struct {
-	UserId string `json:"userId"`
+	UserID string `json:"userID"`
 	PosX   int    `json:"posX"`
 	PosY   int    `json:"posY"`
 }
 
+// GetSessionInfoResponse ...
 type GetSessionInfoResponse struct {
 	Status    string `json:"status"`
 	Username  string `json:"username"`
-	UserId    string `json:"userId"`
-	SessionId string `json:"sessionId"`
+	UserID    string `json:"userID"`
+	SessionID string `json:"sessionID"`
 }
 
+// GetBoardResponse ...
 type GetBoardResponse struct {
 	Status string  `json:"status"`
 	Board  [][]int `json:"board"`
 }
 
+// GetCandidatesResponse ...
 type GetCandidatesResponse struct {
 	Status     string  `json:"status"`
 	Candidates [][]int `json:"candidates"`
 }
 
-func ApiRoute(w http.ResponseWriter, r *http.Request) {
+// APIRoute ...
+func APIRoute(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method == "POST" && r.RequestURI == API_USER {
-		ApiPostUser(w, r)
-	} else if match, _ := regexp.Match(API_USER+"/[a-zA-Z0-9]+", []byte(r.RequestURI)); r.Method == "GET" && match {
-		ApiGetUser(w, r)
-	} else if match, _ := regexp.Match(API_SESSION+"/[a-zA-Z0-9]+"+API_SESSION_BOARD, []byte(r.RequestURI)); r.Method == "GET" && match {
-		ApiGetBoard(w, r)
-	} else if match, _ := regexp.Match(API_SESSION+"/[a-zA-Z0-9]+"+API_SESSION_CAND, []byte(r.RequestURI)); r.Method == "GET" && match {
-		ApiGetCandidates(w, r)
-	} else if match, _ := regexp.Match(API_SESSION+"/[a-zA-Z0-9]+", []byte(r.RequestURI)); r.Method == "POST" && match {
-		ApiPostBoard(w, r)
-	} else if match, _ := regexp.Match(API_SESSION+"/[a-zA-Z0-9]+", []byte(r.RequestURI)); r.Method == "GET" && match {
-		ApiGetSession(w, r)
+	if r.Method == "POST" && r.RequestURI == APIUser {
+		APIPostUser(w, r)
+	} else if match, _ := regexp.Match(APIUser+"/[a-zA-Z0-9]+", []byte(r.RequestURI)); r.Method == "GET" && match {
+		APIGetUser(w, r)
+	} else if match, _ := regexp.Match(APISession+"/[a-zA-Z0-9]+"+APISessionBoard, []byte(r.RequestURI)); r.Method == "GET" && match {
+		APIGetBoard(w, r)
+	} else if match, _ := regexp.Match(APISession+"/[a-zA-Z0-9]+"+APISessionCand, []byte(r.RequestURI)); r.Method == "GET" && match {
+		APIGetCandidates(w, r)
+	} else if match, _ := regexp.Match(APISession+"/[a-zA-Z0-9]+", []byte(r.RequestURI)); r.Method == "POST" && match {
+		APIPostBoard(w, r)
+	} else if match, _ := regexp.Match(APISession+"/[a-zA-Z0-9]+", []byte(r.RequestURI)); r.Method == "GET" && match {
+		APIGetSession(w, r)
 	} else {
 		returnJSONMessage(w, http.StatusInternalServerError, &GeneralMessageResponse{
 			Status:      "fail",
@@ -71,7 +85,8 @@ func ApiRoute(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func ApiPostUser(w http.ResponseWriter, r *http.Request) {
+// APIPostUser ...
+func APIPostUser(w http.ResponseWriter, r *http.Request) {
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -94,22 +109,23 @@ func ApiPostUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username := reqBody.Name
-	userId, sessionId := CreateSession(username)
+	userID, sessionID := CreateSession(username)
 
 	returnJSONMessage(w, http.StatusOK, &GetSessionInfoResponse{
 		Status:    "success",
 		Username:  username,
-		UserId:    userId,
-		SessionId: sessionId,
+		UserID:    userID,
+		SessionID: sessionID,
 	})
 
 }
 
-func ApiGetUser(w http.ResponseWriter, r *http.Request) {
+// APIGetUser ...
+func APIGetUser(w http.ResponseWriter, r *http.Request) {
 
-	re := regexp.MustCompile(API_USER + "/([a-zA-Z0-9]+)")
-	userIdMatch := re.FindStringSubmatch(r.URL.Path)
-	if len(userIdMatch) < 2 {
+	re := regexp.MustCompile(APIUser + "/([a-zA-Z0-9]+)")
+	userIDMatch := re.FindStringSubmatch(r.URL.Path)
+	if len(userIDMatch) < 2 {
 		returnJSONMessage(w, http.StatusInternalServerError, &GeneralMessageResponse{
 			Status:      "fail",
 			Description: "Invalid username",
@@ -117,17 +133,18 @@ func ApiGetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userId := userIdMatch[1]
-	user := GetUser(userId)
+	userID := userIDMatch[1]
+	user := GetUser(userID)
 	returnJSONMessage(w, http.StatusOK, user)
 
 }
 
-func ApiGetSession(w http.ResponseWriter, r *http.Request) {
+// APIGetSession ...
+func APIGetSession(w http.ResponseWriter, r *http.Request) {
 
-	re := regexp.MustCompile(API_SESSION + "/([a-zA-Z0-9]+)")
-	sessionIdMatch := re.FindStringSubmatch(r.URL.Path)
-	if len(sessionIdMatch) < 2 {
+	re := regexp.MustCompile(APISession + "/([a-zA-Z0-9]+)")
+	sessionIDMatch := re.FindStringSubmatch(r.URL.Path)
+	if len(sessionIDMatch) < 2 {
 		returnJSONMessage(w, http.StatusInternalServerError, &GeneralMessageResponse{
 			Status:      "fail",
 			Description: "Invalid session",
@@ -135,17 +152,18 @@ func ApiGetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionId := sessionIdMatch[1]
-	session := GetSessionInfo(sessionId)
+	sessionID := sessionIDMatch[1]
+	session := GetSessionInfo(sessionID)
 	returnJSONMessage(w, http.StatusOK, session)
 
 }
 
-func ApiGetBoard(w http.ResponseWriter, r *http.Request) {
+// APIGetBoard ...
+func APIGetBoard(w http.ResponseWriter, r *http.Request) {
 
-	re := regexp.MustCompile(API_SESSION + "/([a-zA-Z0-9]+)" + API_SESSION_BOARD)
-	sessionIdMatch := re.FindStringSubmatch(r.URL.Path)
-	if len(sessionIdMatch) < 2 {
+	re := regexp.MustCompile(APISession + "/([a-zA-Z0-9]+)" + APISessionBoard)
+	sessionIDMatch := re.FindStringSubmatch(r.URL.Path)
+	if len(sessionIDMatch) < 2 {
 		returnJSONMessage(w, http.StatusInternalServerError, &GeneralMessageResponse{
 			Status:      "fail",
 			Description: "Invalid session",
@@ -153,8 +171,8 @@ func ApiGetBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionId := sessionIdMatch[1]
-	board := GetBoard(sessionId)
+	sessionID := sessionIDMatch[1]
+	board := GetBoard(sessionID)
 	returnJSONMessage(w, http.StatusOK, &GetBoardResponse{
 		Status: "success",
 		Board:  board,
@@ -162,11 +180,12 @@ func ApiGetBoard(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func ApiGetCandidates(w http.ResponseWriter, r *http.Request) {
+// APIGetCandidates ...
+func APIGetCandidates(w http.ResponseWriter, r *http.Request) {
 
-	re := regexp.MustCompile(API_SESSION + "/([a-zA-Z0-9]+)" + API_SESSION_CAND)
-	sessionIdMatch := re.FindStringSubmatch(r.URL.Path)
-	if len(sessionIdMatch) < 2 {
+	re := regexp.MustCompile(APISession + "/([a-zA-Z0-9]+)" + APISessionCand)
+	sessionIDMatch := re.FindStringSubmatch(r.URL.Path)
+	if len(sessionIDMatch) < 2 {
 		returnJSONMessage(w, http.StatusInternalServerError, &GeneralMessageResponse{
 			Status:      "fail",
 			Description: "Invalid session",
@@ -174,9 +193,9 @@ func ApiGetCandidates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionId := sessionIdMatch[1]
-	session := GetSessionInfo(sessionId)
-	cand := FindCandidates(sessionId, session.Turn)
+	sessionID := sessionIDMatch[1]
+	session := GetSessionInfo(sessionID)
+	cand := FindCandidates(sessionID, session.Turn)
 	returnJSONMessage(w, http.StatusOK, &GetCandidatesResponse{
 		Status:     "success",
 		Candidates: cand,
@@ -184,11 +203,12 @@ func ApiGetCandidates(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func ApiPostBoard(w http.ResponseWriter, r *http.Request) {
+// APIPostBoard ...
+func APIPostBoard(w http.ResponseWriter, r *http.Request) {
 
-	re := regexp.MustCompile(API_SESSION + "/([a-zA-Z0-9]+)")
-	sessionIdMatch := re.FindStringSubmatch(r.URL.Path)
-	if len(sessionIdMatch) < 2 {
+	re := regexp.MustCompile(APISession + "/([a-zA-Z0-9]+)")
+	sessionIDMatch := re.FindStringSubmatch(r.URL.Path)
+	if len(sessionIDMatch) < 2 {
 		returnJSONMessage(w, http.StatusInternalServerError, &GeneralMessageResponse{
 			Status:      "fail",
 			Description: "Invalid session",
@@ -216,9 +236,9 @@ func ApiPostBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionId := sessionIdMatch[1]
-	session := GetSessionInfo(sessionId)
-	if session.State < STATE_ESTABLISHED {
+	sessionID := sessionIDMatch[1]
+	session := GetSessionInfo(sessionID)
+	if session.State < StateEstablished {
 		returnJSONMessage(w, http.StatusOK, &GeneralMessageResponse{
 			Status:      "success",
 			Description: "Session does not start yet",
@@ -226,8 +246,8 @@ func ApiPostBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := GetUser(reqBody.UserId)
-	if user.UserId != session.Players[session.Turn-1].UserId {
+	user := GetUser(reqBody.UserID)
+	if user.UserID != session.Players[session.Turn-1].UserID {
 		returnJSONMessage(w, http.StatusOK, &GeneralMessageResponse{
 			Status:      "success",
 			Description: "Not your turn",
@@ -235,7 +255,7 @@ func ApiPostBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ret := PutDisc(sessionId, session.Turn, reqBody.PosX, reqBody.PosY); ret != 0 {
+	if ret := PutDisc(sessionID, session.Turn, reqBody.PosX, reqBody.PosY); ret != 0 {
 		returnJSONMessage(w, http.StatusOK, &GeneralMessageResponse{
 			Status:      "success",
 			Description: "Cannot put a disc",
@@ -243,18 +263,24 @@ func ApiPostBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("API: call UpdateSessionState")
 	// update board
-	UpdateSessionState(sessionId, session.Turn, reqBody.PosX, reqBody.PosY)
+	UpdateSessionState(sessionID, session.Turn, reqBody.PosX, reqBody.PosY)
 
-	board := GetBoard(sessionId)
+	board := GetBoard(sessionID)
 	returnJSONMessage(w, http.StatusOK, board)
 }
 
 func returnJSONMessage(w http.ResponseWriter, returnCode int, res interface{}) {
 
 	w.WriteHeader(returnCode)
-	resJson, _ := json.Marshal(res)
-	w.Write(resJson)
-	fmt.Println(string(resJson))
+	resJSON, err := json.Marshal(res)
+	if err != nil {
+		w.Write([]byte("returnJSONMessage: Cannot parse to JSON"))
+		fmt.Println("returnJSONMessage: Cannot parse to JSON")
+		return
+	}
+	w.Write(resJSON)
+	fmt.Println(string(resJSON))
 
 }

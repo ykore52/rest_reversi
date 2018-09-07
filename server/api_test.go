@@ -12,21 +12,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type FakeHttpResponseWriter struct {
+type FakeHTTPResponseWriter struct {
 	http.ResponseWriter
 	FakeWriteHeader func(statusCode int)
 	FakeWrite       func(stream []byte) (int, error)
 }
 
-func (f *FakeHttpResponseWriter) WriteHeader(statusCode int) {
+func (f *FakeHTTPResponseWriter) WriteHeader(statusCode int) {
 	f.FakeWriteHeader(statusCode)
 }
 
-func (f *FakeHttpResponseWriter) Write(stream []byte) (int, error) {
+func (f *FakeHTTPResponseWriter) Write(stream []byte) (int, error) {
 	return f.FakeWrite(stream)
 }
 
-func Test_ApiPostUser_Success(t *testing.T) {
+func Test_APIPostUser_Success(t *testing.T) {
 
 	url, _ := url.Parse("http://localhost/user")
 	postData := `{"Name": "test1"}`
@@ -38,7 +38,7 @@ func Test_ApiPostUser_Success(t *testing.T) {
 		RequestURI:    "/user",
 	}
 
-	w := &FakeHttpResponseWriter{
+	w := &FakeHTTPResponseWriter{
 		FakeWriteHeader: func(statusCode int) { /* nothing to do */ },
 		FakeWrite: func(stream []byte) (int, error) {
 			assert.Equal(t, string(stream[:19]), `{"status":"success"`)
@@ -46,10 +46,10 @@ func Test_ApiPostUser_Success(t *testing.T) {
 		},
 	}
 
-	ApiRoute(w, r)
+	APIRoute(w, r)
 }
 
-func Test_ApiPostUser_Error_Method(t *testing.T) {
+func Test_APIPostUser_Error_Method(t *testing.T) {
 
 	url, _ := url.Parse("http://localhost/user")
 	postData := `{"Name": "test1"}`
@@ -61,7 +61,7 @@ func Test_ApiPostUser_Error_Method(t *testing.T) {
 		RequestURI:    "/user",
 	}
 
-	w := &FakeHttpResponseWriter{
+	w := &FakeHTTPResponseWriter{
 		FakeWriteHeader: func(statusCode int) { /* nothing to do */ },
 		FakeWrite: func(stream []byte) (int, error) {
 			assert.Equal(t, string(stream[:16]), `{"status":"fail"`)
@@ -69,10 +69,10 @@ func Test_ApiPostUser_Error_Method(t *testing.T) {
 		},
 	}
 
-	ApiRoute(w, r)
+	APIRoute(w, r)
 }
 
-func Test_ApiPostUser_Error_ContentLength(t *testing.T) {
+func Test_APIPostUser_Error_ContentLength(t *testing.T) {
 
 	url, _ := url.Parse("http://localhost/user")
 	postData := `{"Name": "test1"}`
@@ -84,7 +84,7 @@ func Test_ApiPostUser_Error_ContentLength(t *testing.T) {
 		RequestURI:    "/user",
 	}
 
-	w := &FakeHttpResponseWriter{
+	w := &FakeHTTPResponseWriter{
 		FakeWriteHeader: func(statusCode int) { /* nothing to do */ },
 		FakeWrite: func(stream []byte) (int, error) {
 			assert.Equal(t, string(stream[:16]), `{"status":"fail"`)
@@ -92,10 +92,10 @@ func Test_ApiPostUser_Error_ContentLength(t *testing.T) {
 		},
 	}
 
-	ApiRoute(w, r)
+	APIRoute(w, r)
 }
 
-func Test_ApiPostUser_Error_BrokenJSON(t *testing.T) {
+func Test_APIPostUser_Error_BrokenJSON(t *testing.T) {
 
 	url, _ := url.Parse("http://localhost/user")
 	postData := `"Name": "test1"`
@@ -107,7 +107,7 @@ func Test_ApiPostUser_Error_BrokenJSON(t *testing.T) {
 		RequestURI:    "/user",
 	}
 
-	w := &FakeHttpResponseWriter{
+	w := &FakeHTTPResponseWriter{
 		FakeWriteHeader: func(statusCode int) { /* nothing to do */ },
 		FakeWrite: func(stream []byte) (int, error) {
 			assert.Equal(t, string(stream[:16]), `{"status":"fail"`)
@@ -115,10 +115,10 @@ func Test_ApiPostUser_Error_BrokenJSON(t *testing.T) {
 		},
 	}
 
-	ApiRoute(w, r)
+	APIRoute(w, r)
 }
 
-func Test_ApiGetUser_Success(t *testing.T) {
+func Test_APIGetUser_Success(t *testing.T) {
 
 	done := make(chan GetSessionInfoResponse, 1)
 
@@ -134,7 +134,7 @@ func Test_ApiGetUser_Success(t *testing.T) {
 			RequestURI:    "/user",
 		}
 
-		w := &FakeHttpResponseWriter{
+		w := &FakeHTTPResponseWriter{
 			FakeWriteHeader: func(statusCode int) { /* nothing to do */ },
 			FakeWrite: func(stream []byte) (int, error) {
 				assert.Equal(t, string(stream[:19]), `{"status":"success"`)
@@ -146,7 +146,7 @@ func Test_ApiGetUser_Success(t *testing.T) {
 			},
 		}
 
-		ApiRoute(w, r)
+		APIRoute(w, r)
 	}
 
 	sessionInfo, ok := <-done
@@ -157,7 +157,7 @@ func Test_ApiGetUser_Success(t *testing.T) {
 
 	if true {
 
-		url, _ := url.Parse("http://localhost/user/" + sessionInfo.UserId)
+		url, _ := url.Parse("http://localhost/user/" + sessionInfo.UserID)
 		r := &http.Request{
 			Method:        "GET",
 			URL:           url,
@@ -165,7 +165,7 @@ func Test_ApiGetUser_Success(t *testing.T) {
 			ContentLength: 0,
 		}
 
-		w := &FakeHttpResponseWriter{
+		w := &FakeHTTPResponseWriter{
 			FakeWriteHeader: func(statusCode int) { /* nothing to do */ },
 			FakeWrite: func(stream []byte) (int, error) {
 				fmt.Println("OUTPUT: " + string(stream))
@@ -174,6 +174,6 @@ func Test_ApiGetUser_Success(t *testing.T) {
 			},
 		}
 
-		ApiRoute(w, r)
+		APIRoute(w, r)
 	}
 }

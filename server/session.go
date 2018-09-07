@@ -10,15 +10,15 @@ import (
 type SessionState int
 
 const (
-	STATE_WAIT SessionState = iota
-	STATE_ESTABLISHED
-	STATE_PUT_WHITE
-	STATE_PUT_BLACK
-	STATE_PASSED_WHITE
-	STATE_PASSED_BLACK
-	STATE_WON_WHITE
-	STATE_WON_BLACK
-	STATE_CLOSE
+	StateWait SessionState = iota
+	StateEstablished
+	StatePutWhite
+	StatePutBlack
+	StatePassedWhite
+	StatePassedBlack
+	StateWonWhite
+	StateWonBlack
+	StateClose
 )
 
 const (
@@ -28,11 +28,11 @@ const (
 )
 
 const (
-	MAX_BOARD_SIZE int = 8
+	MaxBoardSize int = 8
 )
 
 type Session struct {
-	SessionId   string       `json:"sessionId"`
+	SessionID   string       `json:"sessionID"`
 	Players     []User       `json:"players"`
 	State       SessionState `json:"state"`
 	Turn        int          `json:"turn"`
@@ -56,27 +56,27 @@ func CreateSession(username string) (string, string) {
 
 	user := CreateUser(username)
 
-	sessionId := func(user User) string {
+	sessionID := func(user User) string {
 		for _, s := range sessionStore {
 			// pairing
-			if len(s.Players) == 1 && s.State == STATE_WAIT {
+			if len(s.Players) == 1 && s.State == StateWait {
 				s.Players = append(s.Players, user)
-				s.State = STATE_ESTABLISHED
-				return s.SessionId
+				s.State = StateEstablished
+				return s.SessionID
 			}
 		}
 		return ""
 	}(user)
 
-	if sessionId == "" {
+	if sessionID == "" {
 
 		// create a new session
-		sessionId = fmt.Sprintf("%x", sha256.Sum224([]byte((username + strconv.FormatInt(time.Now().UnixNano(), 10)))))
+		sessionID = fmt.Sprintf("%x", sha256.Sum224([]byte((username + strconv.FormatInt(time.Now().UnixNano(), 10)))))
 
-		sessionStore[sessionId] = &Session{
-			SessionId: sessionId,
+		sessionStore[sessionID] = &Session{
+			SessionID: sessionID,
 			Players:   []User{user},
-			State:     STATE_WAIT,
+			State:     StateWait,
 			Turn:      1,
 			Board: [][]int{
 				{0, 0, 0, 0, 0, 0, 0, 0},
@@ -92,42 +92,38 @@ func CreateSession(username string) (string, string) {
 		}
 	}
 
-	userStore[user.UserId] = user
+	userStore[user.UserID] = user
 
-	return user.UserId, sessionId
+	return user.UserID, sessionID
 }
 
-func RemoveSession(sessionId string) {
-	delete(sessionStore, sessionId)
+func RemoveSession(sessionID string) {
+	delete(sessionStore, sessionID)
 }
 
 func GetSession() map[string]*Session {
 	return sessionStore
 }
 
-func GetSessionInfo(sessionId string) *Session {
-	return sessionStore[sessionId]
+func GetSessionInfo(sessionID string) *Session {
+	return sessionStore[sessionID]
 }
 
-func GetBoard(sessionId string) [][]int {
-	return sessionStore[sessionId].Board
+func GetBoard(sessionID string) [][]int {
+	return sessionStore[sessionID].Board
 }
 
-func IsTurn(sessionId string, color int) bool {
-	return sessionStore[sessionId].Turn == color
+func IsTurn(sessionID string, color int) bool {
+	return sessionStore[sessionID].Turn == color
 }
 
-func PutDisc(sessionId string, color int, posX, posY int) int {
+func PutDisc(sessionID string, color int, posX, posY int) int {
 
-	if !IsTurn(sessionId, color) {
-		return 1
-	}
-
-	if posY < 0 || posY >= MAX_BOARD_SIZE || posX < 0 || posX >= MAX_BOARD_SIZE {
+	if posY < 0 || posY >= MaxBoardSize || posX < 0 || posX >= MaxBoardSize {
 		return 2
 	}
 
-	board := sessionStore[sessionId].Board
+	board := sessionStore[sessionID].Board
 	if board[posY][posX] != EMPTY {
 		return 3
 	}
@@ -137,9 +133,6 @@ func PutDisc(sessionId string, color int, posX, posY int) int {
 	for i := range board {
 		copy(boardBackup[i], board[i])
 	}
-
-	// put a disc
-	board[posY][posX] = color
 
 	// a flag whether move is available
 	move := false
@@ -173,7 +166,7 @@ func PutDisc(sessionId string, color int, posX, posY int) int {
 	move = move || func() bool {
 		move := false
 		side_y, side_x := -1, -1
-		for y, x := posY-1, posX+1; y >= 0 && x < MAX_BOARD_SIZE; y, x = y-1, x+1 {
+		for y, x := posY-1, posX+1; y >= 0 && x < MaxBoardSize; y, x = y-1, x+1 {
 			if board[y][x] == EMPTY {
 				return false
 			}
@@ -197,7 +190,7 @@ func PutDisc(sessionId string, color int, posX, posY int) int {
 	move = move || func() bool {
 		move := false
 		side_x := -1
-		for x := posX + 1; x < MAX_BOARD_SIZE; x++ {
+		for x := posX + 1; x < MaxBoardSize; x++ {
 			if board[posY][x] == EMPTY {
 				return false
 			}
@@ -221,7 +214,7 @@ func PutDisc(sessionId string, color int, posX, posY int) int {
 	move = move || func() bool {
 		move := false
 		side_y, side_x := -1, -1
-		for y, x := posY+1, posX+1; y < MAX_BOARD_SIZE && x < MAX_BOARD_SIZE; y, x = y+1, x+1 {
+		for y, x := posY+1, posX+1; y < MaxBoardSize && x < MaxBoardSize; y, x = y+1, x+1 {
 			if board[y][x] == EMPTY {
 				return false
 			}
@@ -243,16 +236,13 @@ func PutDisc(sessionId string, color int, posX, posY int) int {
 
 	// parse for down
 	move = move || func() bool {
-		fmt.Printf("begin %d %d %d\n", color, posX, posY)
 		move := false
 		side_y := -1
-		for y := posY + 1; y < MAX_BOARD_SIZE; y++ {
+		for y := posY + 1; y < MaxBoardSize; y++ {
 			if board[y][posX] == EMPTY {
-				fmt.Printf(" (%d %d) is empty\n", posX, y)
 				return false
 			}
 			if board[y][posX] == color {
-				fmt.Printf(" (%d %d) found\n", posX, y)
 				side_y = y
 				break
 			}
@@ -261,7 +251,6 @@ func PutDisc(sessionId string, color int, posX, posY int) int {
 		// flip discs
 		if side_y != -1 {
 			for y := posY + 1; y < side_y; y++ {
-				fmt.Printf(" flip (%d %d)\n", posX, y)
 				board[y][posX] = color
 				move = true
 			}
@@ -273,7 +262,7 @@ func PutDisc(sessionId string, color int, posX, posY int) int {
 	move = move || func() bool {
 		move := false
 		side_y, side_x := -1, -1
-		for y, x := posY+1, posX-1; y < MAX_BOARD_SIZE && x >= 0; y, x = y+1, x-1 {
+		for y, x := posY+1, posX-1; y < MaxBoardSize && x >= 0; y, x = y+1, x-1 {
 			if board[y][x] == EMPTY {
 				return false
 			}
@@ -349,16 +338,19 @@ func PutDisc(sessionId string, color int, posX, posY int) int {
 		return 4
 	}
 
+	// put a disc
+	board[posY][posX] = color
+
 	return 0
 }
 
 //
 // Find all candidate to put a disc on to the board
 //
-func FindCandidates(sessionId string, color int) [][]int {
+func FindCandidates(sessionID string, color int) [][]int {
 
 	// save previous state
-	board := sessionStore[sessionId].Board
+	board := sessionStore[sessionID].Board
 	boardBackup := make([][]int, len(board))
 	for i := range board {
 		boardBackup[i] = make([]int, len(board[i]))
@@ -366,10 +358,10 @@ func FindCandidates(sessionId string, color int) [][]int {
 	}
 
 	candidates := make([][]int, 0)
-	for y := 0; y < MAX_BOARD_SIZE; y++ {
-		for x := 0; x < MAX_BOARD_SIZE; x++ {
+	for y := 0; y < MaxBoardSize; y++ {
+		for x := 0; x < MaxBoardSize; x++ {
 
-			if PutDisc(sessionId, color, x, y) == 0 {
+			if PutDisc(sessionID, color, x, y) == 0 {
 				candidates = append(candidates, []int{y, x})
 			}
 
@@ -383,51 +375,53 @@ func FindCandidates(sessionId string, color int) [][]int {
 	return candidates
 }
 
-func RotateTurn(sessionId string) {
+func RotateTurn(sessionID string) {
 	// rotate a turn
-	if sessionStore[sessionId].Turn == WHITE {
-		sessionStore[sessionId].Turn = BLACK
+	if sessionStore[sessionID].Turn == WHITE {
+		sessionStore[sessionID].Turn = BLACK
 	} else {
-		sessionStore[sessionId].Turn = WHITE
+		sessionStore[sessionID].Turn = WHITE
 	}
 }
 
-func UpdateSessionState(sessionId string, color int, posX int, posY int) {
+func UpdateSessionState(sessionID string, color int, posX int, posY int) {
 
-	turn := sessionStore[sessionId].Turn
+	turn := sessionStore[sessionID].Turn
 
 	// increment number of elapsed turn
-	sessionStore[sessionId].ElapsedTurn++
+	sessionStore[sessionID].ElapsedTurn++
 
-	sessionStore[sessionId].LastMove = []int{color, posX, posY}
-	sessionStore[sessionId].MoveLog = append(sessionStore[sessionId].MoveLog, []int{color, posX, posY})
+	sessionStore[sessionID].LastMove = []int{color, posX, posY}
+	sessionStore[sessionID].MoveLog = append(sessionStore[sessionID].MoveLog, []int{color, posX, posY})
 
 	if turn == WHITE {
-		fmt.Printf("black cand: %d\n", len(FindCandidates(sessionId, BLACK)))
-		if len(FindCandidates(sessionId, BLACK)) == 0 {
-			if len(FindCandidates(sessionId, WHITE)) == 0 {
-				sessionStore[sessionId].State = STATE_WON_WHITE
+		fmt.Printf("black cand: %x, %d\n", FindCandidates(sessionID, BLACK), len(FindCandidates(sessionID, BLACK)))
+		if len(FindCandidates(sessionID, BLACK)) == 0 {
+			if len(FindCandidates(sessionID, WHITE)) == 0 {
+				sessionStore[sessionID].State = StateWonWhite
 			} else {
 				// pass a turn
-				sessionStore[sessionId].State = STATE_PASSED_BLACK
+				sessionStore[sessionID].State = StatePassedBlack
 			}
 		} else {
-			RotateTurn(sessionId)
-			sessionStore[sessionId].State = STATE_PUT_WHITE
+			fmt.Println("Rotate a turn to BLACK")
+			RotateTurn(sessionID)
+			sessionStore[sessionID].State = StatePutWhite
 		}
 
 	} else if turn == BLACK {
-		fmt.Printf("white cand: %d\n", len(FindCandidates(sessionId, WHITE)))
-		if len(FindCandidates(sessionId, WHITE)) == 0 {
-			if len(FindCandidates(sessionId, BLACK)) == 0 {
-				sessionStore[sessionId].State = STATE_WON_BLACK
+		fmt.Printf("white cand: %d\n", len(FindCandidates(sessionID, WHITE)))
+		if len(FindCandidates(sessionID, WHITE)) == 0 {
+			if len(FindCandidates(sessionID, BLACK)) == 0 {
+				sessionStore[sessionID].State = StateWonBlack
 			} else {
 				// pass a turn
-				sessionStore[sessionId].State = STATE_PASSED_WHITE
+				sessionStore[sessionID].State = StatePassedWhite
 			}
 		} else {
-			RotateTurn(sessionId)
-			sessionStore[sessionId].State = STATE_PUT_BLACK
+			fmt.Println("Rotate a turn to WHITE")
+			RotateTurn(sessionID)
+			sessionStore[sessionID].State = StatePutBlack
 		}
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func MyHandler(w http.ResponseWriter, r *http.Request) {
+func myHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("------")
 
@@ -20,14 +20,15 @@ func MyHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("RemoteAddr:       %s\n", r.RemoteAddr)
 	fmt.Printf("TransferEncoding: %s\n", r.TransferEncoding)
 
-	ApiRoute(w, r)
+	APIRoute(w, r)
 }
 
+// Run ...
 func Run(port int, args []string) error {
 
 	s := &http.Server{
 		Addr:           ":" + strconv.Itoa(port),
-		Handler:        http.HandlerFunc(MyHandler),
+		Handler:        http.HandlerFunc(myHandler),
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,

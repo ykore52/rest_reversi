@@ -9,7 +9,7 @@ import (
 
 type User struct {
 	Name   string `json:"name"`
-	UserId string `json:"userId"`
+	UserID string `json:"userID"`
 }
 
 var userStore map[string]User
@@ -26,19 +26,19 @@ func CreateUser(name string) User {
 
 	user := User{
 		Name:   name,
-		UserId: fmt.Sprintf("%x", sha256.Sum224([]byte((name + strconv.FormatInt(time.Now().UnixNano(), 10))))),
+		UserID: fmt.Sprintf("%x", sha256.Sum224([]byte((name + strconv.FormatInt(time.Now().UnixNano(), 10))))),
 	}
 
-	userStore[user.UserId] = user
+	userStore[user.UserID] = user
 
 	return user
 }
 
-func RemoveUser(userId string) {
+func RemoveUser(userID string) {
 
-	delete(userStore, userId)
+	delete(userStore, userID)
 }
 
-func GetUser(userId string) User {
-	return userStore[userId]
+func GetUser(userID string) User {
+	return userStore[userID]
 }
